@@ -3,7 +3,6 @@
  * TQT WP-CLI Commands
  *
  * wp tqt import <file> [--post-type=menu_item] [--dry-run]
- * wp tqt export [--post-type=menu_item]
  * wp tqt languages
  * wp tqt stats [--post-type=menu_item]
  */

@@ -23,6 +23,12 @@ require_once TQT_DIR . 'includes/settings.php';
 /* ── Translation storage & retrieval API ── */
 require_once TQT_DIR . 'includes/storage.php';
 
+/* ── Front: URL language prefix (/es/…), cookies, localize helpers ── */
+require_once TQT_DIR . 'includes/request-language.php';
+require_once TQT_DIR . 'includes/locale-theme.php';
+require_once TQT_DIR . 'includes/frontend-hooks.php';
+require_once TQT_DIR . 'includes/frontend-helpers.php';
+
 /* ── Admin: settings page UI ── */
 require_once TQT_DIR . 'includes/admin-settings.php';
 

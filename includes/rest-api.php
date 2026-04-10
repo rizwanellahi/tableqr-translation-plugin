@@ -13,6 +13,18 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+/**
+ * ACF get_field when available; otherwise raw post meta (same field name).
+ *
+ * @return mixed
+ */
+function tqt_rest_get_field_value( string $selector, int $post_id ) {
+    if ( function_exists( 'get_field' ) ) {
+        return get_field( $selector, $post_id );
+    }
+    return get_post_meta( $post_id, $selector, true );
+}
+
 add_action( 'rest_api_init', function () {
 
     $ns = 'tqt/v1';
@@ -140,7 +152,7 @@ function tqt_rest_menu_single( WP_REST_Request $req ): WP_REST_Response {
     $lang     = $req->get_param( 'lang' ) ?: $settings['default_language'];
     $post     = get_post( $req->get_param( 'id' ) );
 
-    if ( ! $post || $post->post_status !== 'publish' ) {
+    if ( ! $post || $post->post_status !== 'publish' || $post->post_type !== 'menu_item' ) {
         return new WP_REST_Response( [ 'error' => 'Not found' ], 404 );
     }
 
@@ -158,18 +170,30 @@ function tqt_build_menu_item( WP_Post $post, string $lang, array $settings ): ?a
     $title = tqt_get_translation( $post->ID, 'post_title', $lang );
     $desc  = tqt_get_translation( $post->ID, 'description', $lang );
 
-    // Fallback logic
+    // Fallback logic (missing title for non-default language)
     if ( $lang !== $default && $title === '' ) {
-        if ( $fallback === 'hide' ) return null;
+        if ( $fallback === 'hide' ) {
+            return null;
+        }
         if ( $fallback === 'default' ) {
             $title = tqt_get_translation( $post->ID, 'post_title', $default );
-            if ( $desc === '' ) $desc = tqt_get_translation( $post->ID, 'description', $default );
+            if ( $desc === '' ) {
+                $desc = tqt_get_translation( $post->ID, 'description', $default );
+            }
         }
+        // 'empty': leave title and description blank
     }
 
-    // Image
-    $image_data = get_field( 'image', $post->ID );
-    $image_url  = is_array( $image_data ) ? ( $image_data['url'] ?? '' ) : ( $image_data ?: '' );
+    // Image (ACF image field or attachment id)
+    $image_data = function_exists( 'get_field' ) ? get_field( 'image', $post->ID ) : null;
+    $image_url  = '';
+    if ( is_array( $image_data ) ) {
+        $image_url = $image_data['url'] ?? '';
+    } elseif ( $image_data ) {
+        $image_url = is_numeric( $image_data ) && function_exists( 'wp_get_attachment_url' )
+            ? (string) wp_get_attachment_url( (int) $image_data )
+            : (string) $image_data;
+    }
 
     // Category & Section
     $cat_terms = wp_get_object_terms( $post->ID, 'menu_category' );
@@ -178,15 +202,39 @@ function tqt_build_menu_item( WP_Post $post, string $lang, array $settings ): ?a
     $category = '';
     $category_slug = '';
     if ( ! empty( $cat_terms ) && ! is_wp_error( $cat_terms ) ) {
-        $category      = $lang === $default ? $cat_terms[0]->name : ( tqt_get_term_translation( $cat_terms[0]->term_id, $lang ) ?: $cat_terms[0]->name );
-        $category_slug = $cat_terms[0]->slug;
+        $t = $cat_terms[0];
+        if ( $lang === $default ) {
+            $category = $t->name;
+        } else {
+            $tr = tqt_get_term_translation( $t->term_id, $lang );
+            if ( $tr !== '' ) {
+                $category = $tr;
+            } elseif ( $fallback === 'empty' ) {
+                $category = '';
+            } else {
+                $category = $t->name;
+            }
+        }
+        $category_slug = $t->slug;
     }
 
     $section = '';
     $section_slug = '';
     if ( ! empty( $sec_terms ) && ! is_wp_error( $sec_terms ) ) {
-        $section      = $lang === $default ? $sec_terms[0]->name : ( tqt_get_term_translation( $sec_terms[0]->term_id, $lang ) ?: $sec_terms[0]->name );
-        $section_slug = $sec_terms[0]->slug;
+        $t = $sec_terms[0];
+        if ( $lang === $default ) {
+            $section = $t->name;
+        } else {
+            $tr = tqt_get_term_translation( $t->term_id, $lang );
+            if ( $tr !== '' ) {
+                $section = $tr;
+            } elseif ( $fallback === 'empty' ) {
+                $section = '';
+            } else {
+                $section = $t->name;
+            }
+        }
+        $section_slug = $t->slug;
     }
 
     $item = [
@@ -194,8 +242,8 @@ function tqt_build_menu_item( WP_Post $post, string $lang, array $settings ): ?a
         'slug'           => $post->post_name,
         'title'          => $title,
         'description'    => $desc,
-        'price'          => get_field( 'price', $post->ID ),
-        'calorie'        => get_field( 'calorie', $post->ID ),
+        'price'          => tqt_rest_get_field_value( 'price', $post->ID ),
+        'calorie'        => tqt_rest_get_field_value( 'calorie', $post->ID ),
         'image'          => $image_url,
         'category'       => $category,
         'category_slug'  => $category_slug,
@@ -211,9 +259,18 @@ function tqt_build_menu_item( WP_Post $post, string $lang, array $settings ): ?a
         $variants = [];
         for ( $i = 0; $i < $variant_count; $i++ ) {
             $name_key = "prices_{$i}_price_name";
-            $name     = $lang === $default
-                ? (string) get_post_meta( $post->ID, $name_key, true )
-                : ( (string) get_post_meta( $post->ID, $name_key . '_' . $lang, true ) ?: (string) get_post_meta( $post->ID, $name_key, true ) );
+            if ( $lang === $default ) {
+                $name = (string) get_post_meta( $post->ID, $name_key, true );
+            } else {
+                $tr = (string) get_post_meta( $post->ID, $name_key . '_' . $lang, true );
+                if ( $tr !== '' ) {
+                    $name = $tr;
+                } elseif ( $fallback === 'empty' ) {
+                    $name = '';
+                } else {
+                    $name = (string) get_post_meta( $post->ID, $name_key, true );
+                }
+            }
 
             $variants[] = [
                 'name'    => $name,
@@ -225,13 +282,15 @@ function tqt_build_menu_item( WP_Post $post, string $lang, array $settings ): ?a
     }
 
     // Labels
-    $item['item_labels'] = get_field( 'item_labels', $post->ID ) ?: '';
+    $item['item_labels'] = tqt_rest_get_field_value( 'item_labels', $post->ID ) ?: '';
     $item['custom_label'] = tqt_get_translation( $post->ID, 'custom_label', $lang );
 
     // Nutritional data
-    $item['preparation_time'] = get_field( 'preparation_time', $post->ID );
-    $item['ingredients']      = get_field( 'ingredients', $post->ID ) ?: [];
-    $item['allergens']        = get_field( 'allergens', $post->ID ) ?: [];
+    $item['preparation_time'] = tqt_rest_get_field_value( 'preparation_time', $post->ID );
+    $ingredients              = tqt_rest_get_field_value( 'ingredients', $post->ID );
+    $allergens                = tqt_rest_get_field_value( 'allergens', $post->ID );
+    $item['ingredients']      = is_array( $ingredients ) ? $ingredients : [];
+    $item['allergens']        = is_array( $allergens ) ? $allergens : [];
 
     return $item;
 }

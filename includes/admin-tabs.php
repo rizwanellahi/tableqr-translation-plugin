@@ -142,20 +142,25 @@ function tqt_render_translation_metabox( $post ) {
 
                 foreach ( $rep['sub_fields'] as $sf ) :
                     foreach ( $rows as $i => $row ) :
-                        $row_num    = $i + 1;
-                        $base_key   = "{$repeater_name}_{$row_num}_{$sf['name']}";
+                        // ACF stores rows as repeater_0_field, repeater_1_field (0-based)
+                        $base_key   = "{$repeater_name}_{$i}_{$sf['name']}";
                         $val        = (string) get_post_meta( $post->ID, $base_key . '_' . $code, true );
+                        // Legacy: older UI wrote 1-based keys (prices_1_*); read if present
+                        if ( $val === '' ) {
+                            $legacy_key = "{$repeater_name}_" . ( $i + 1 ) . "_{$sf['name']}_{$code}";
+                            $val        = (string) get_post_meta( $post->ID, $legacy_key, true );
+                        }
                         $default_val = (string) get_post_meta( $post->ID, $base_key, true );
-                        // ACF stores repeater sub-fields as repeater_N_field in postmeta
-                        // We read the actual stored value
-                        $acf_key    = "_{$repeater_name}_{$i}_{$sf['name']}";
                         $default_val2 = (string) get_post_meta( $post->ID, "{$repeater_name}_{$i}_{$sf['name']}", true );
-                        if ( $default_val2 ) $default_val = $default_val2;
+                        if ( $default_val2 !== '' ) {
+                            $default_val = $default_val2;
+                        }
 
                         $input_name = "tqt_rep[{$code}][{$base_key}]";
+                        $label_row    = $i + 1;
             ?>
                         <div class="tqt-field">
-                            <label><?php echo esc_html( $sf['label'] . ' #' . $row_num ); ?></label>
+                            <label><?php echo esc_html( $sf['label'] . ' #' . $label_row ); ?></label>
                             <input type="text" name="<?php echo esc_attr( $input_name ); ?>" value="<?php echo esc_attr( $val ); ?>"
                                 placeholder="<?php echo esc_attr( $default_val ); ?>"
                                 style="<?php echo $info['rtl'] ? 'direction:rtl;text-align:right;' : ''; ?>">
@@ -185,6 +190,7 @@ function tqt_render_translation_metabox( $post ) {
 /* ── Save translations on post save ── */
 add_action( 'save_post', function ( $post_id ) {
     if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
+    if ( wp_is_post_revision( $post_id ) ) return;
     if ( ! isset( $_POST['tqt_translations_nonce'] ) ) return;
     if ( ! wp_verify_nonce( $_POST['tqt_translations_nonce'], 'tqt_save_translations' ) ) return;
     if ( ! current_user_can( 'edit_post', $post_id ) ) return;

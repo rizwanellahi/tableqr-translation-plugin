@@ -43,6 +43,10 @@ function tqt_process_csv_export( string $post_type ) {
     $delimiter = $settings['csv_delimiter'] ?: ',';
     $default   = $settings['default_language'];
     $trans     = tqt_translation_languages();
+    $trans_codes_longest_first = array_keys( $trans );
+    usort( $trans_codes_longest_first, static function ( $a, $b ) {
+        return strlen( $b ) <=> strlen( $a );
+    } );
     $fields    = tqt_get_fields_for( $post_type );
 
     $posts = get_posts([
@@ -123,17 +127,18 @@ function tqt_process_csv_export( string $post_type ) {
             // Detect language suffix
             $lang     = $default;
             $base_col = $col;
-            foreach ( $trans as $code => $info ) {
+            foreach ( $trans_codes_longest_first as $code ) {
                 $suffix = '_' . $code;
-                if ( str_ends_with( $col, $suffix ) ) {
-                    $candidate = substr( $col, 0, -strlen( $suffix ) );
-                    // Make sure it's actually a lang suffix not part of field name
-                    if ( in_array( $candidate, [ 'title', 'menu_category', 'menu_section', 'description', 'custom_label' ], true )
-                        || preg_match( '/^prices_\d+_price_name$/', $candidate ) ) {
-                        $lang     = $code;
-                        $base_col = $candidate;
-                        break;
-                    }
+                if ( ! tqt_str_ends_with( $col, $suffix ) ) {
+                    continue;
+                }
+                $candidate = substr( $col, 0, -strlen( $suffix ) );
+                // Make sure it's actually a lang suffix not part of field name
+                if ( in_array( $candidate, [ 'title', 'menu_category', 'menu_section', 'description', 'custom_label' ], true )
+                    || preg_match( '/^prices_\d+_price_name$/', $candidate ) ) {
+                    $lang     = $code;
+                    $base_col = $candidate;
+                    break;
                 }
             }
 

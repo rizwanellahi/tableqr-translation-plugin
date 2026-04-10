@@ -128,11 +128,14 @@ function tqt_process_csv_import( string $file, string $post_type, bool $dry_run 
         return [ 'message' => 'Missing required "title" column.', 'errors' => [] ];
     }
 
-    // Build lang suffix list
+    // Build lang suffix list (longest first so codes like zh_TW beat zh)
     $lang_suffixes = [];
     foreach ( $trans as $code => $info ) {
         $lang_suffixes[] = '_' . $code;
     }
+    usort( $lang_suffixes, static function ( $a, $b ) {
+        return strlen( $b ) <=> strlen( $a );
+    } );
 
     // Parse all rows
     $rows    = [];
@@ -184,16 +187,21 @@ function tqt_process_csv_import( string $file, string $post_type, bool $dry_run 
         if ( ! empty( $existing ) ) {
             $post_id = $existing[0]->ID;
             $post_data['ID'] = $post_id;
-            wp_update_post( $post_data );
+            $updated_id = wp_update_post( $post_data, true );
+            if ( is_wp_error( $updated_id ) ) {
+                $errors[] = "Row " . ( $idx + 2 ) . ": failed to update post for '{$title}'.";
+                continue;
+            }
+            $post_id = (int) $updated_id;
             $updated++;
         } else {
-            $post_id = wp_insert_post( $post_data );
+            $post_id = wp_insert_post( $post_data, true );
+            if ( is_wp_error( $post_id ) || ! $post_id ) {
+                $errors[] = "Row " . ( $idx + 2 ) . ": failed to create post for '{$title}'.";
+                continue;
+            }
+            $post_id = (int) $post_id;
             $created++;
-        }
-
-        if ( is_wp_error( $post_id ) ) {
-            $errors[] = "Row " . ( $idx + 2 ) . ": failed to create post for '{$title}'.";
-            continue;
         }
 
         // Process each column
@@ -205,7 +213,7 @@ function tqt_process_csv_import( string $file, string $post_type, bool $dry_run 
             $lang       = $default;
             $base_col   = $col;
             foreach ( $lang_suffixes as $suffix ) {
-                if ( str_ends_with( $col, $suffix ) ) {
+                if ( tqt_str_ends_with( $col, $suffix ) ) {
                     $lang     = substr( $suffix, 1 );
                     $base_col = substr( $col, 0, -strlen( $suffix ) );
                     break;

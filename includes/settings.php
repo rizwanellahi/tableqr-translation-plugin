@@ -20,6 +20,17 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+/**
+ * Polyfill for PHP 8 str_ends_with (plugin declares PHP 7.4+).
+ */
+function tqt_str_ends_with( string $haystack, string $needle ): bool {
+    if ( $needle === '' ) {
+        return true;
+    }
+    $len = strlen( $needle );
+    return strlen( $haystack ) >= $len && substr( $haystack, -$len ) === $needle;
+}
+
 /* ------------------------------------------------------------------ */
 /*  BUILT-IN LANGUAGE LIST                                             */
 /* ------------------------------------------------------------------ */

@@ -113,6 +113,26 @@ function tqt_set_term_translation( int $term_id, string $lang, string $value ): 
     }
 }
 
+/**
+ * Term name for front-end display: TQT translation for the active (or given) language, else default WP term name.
+ *
+ * @param WP_Term|int $term Term object or term ID.
+ */
+function tqt_term_display_name( $term, ?string $lang = null ): string {
+    if ( is_numeric( $term ) ) {
+        $term = get_term( (int) $term );
+    }
+    if ( ! $term instanceof WP_Term || is_wp_error( $term ) ) {
+        return '';
+    }
+    if ( ! function_exists( 'tqt_get_current_language' ) || ! function_exists( 'tqt_get_term_translation' ) ) {
+        return $term->name;
+    }
+    $lang = $lang ?? tqt_get_current_language();
+    $tr   = tqt_get_term_translation( (int) $term->term_id, $lang );
+    return $tr !== '' ? $tr : $term->name;
+}
+
 /* ------------------------------------------------------------------ */
 /*  BULK: Get all translations for a post (all fields, all languages)  */
 /* ------------------------------------------------------------------ */
