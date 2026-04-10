@@ -1,0 +1,160 @@
+/**
+ * TableQR Translations — Tabbed Language UI
+ */
+
+.tqt-tabs-wrapper {
+    margin: 10px 0;
+    border: 1px solid #c3c4c7;
+    background: #fff;
+}
+
+.tqt-tabs-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    border-bottom: 2px solid #2271b1;
+    background: #f0f0f1;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+}
+
+.tqt-tabs-nav li {
+    margin: 0;
+}
+
+.tqt-tabs-nav li button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 18px;
+    border: none;
+    background: transparent;
+    color: #50575e;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.15s ease;
+}
+
+.tqt-tabs-nav li button:hover {
+    color: #2271b1;
+    background: rgba(34, 113, 177, 0.04);
+}
+
+.tqt-tabs-nav li button.tqt-tab-active {
+    color: #1d2327;
+    background: #fff;
+    border-bottom-color: #2271b1;
+    font-weight: 600;
+}
+
+.tqt-tabs-nav li button .tqt-tab-badge {
+    display: inline-block;
+    padding: 0 6px;
+    border-radius: 10px;
+    font-size: 10px;
+    line-height: 18px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.tqt-tabs-nav li button .tqt-tab-badge-default {
+    background: #2271b1;
+    color: #fff;
+}
+
+.tqt-tabs-nav li button .tqt-tab-badge-filled {
+    background: #00a32a;
+    color: #fff;
+}
+
+.tqt-tabs-nav li button .tqt-tab-badge-empty {
+    background: #d63638;
+    color: #fff;
+}
+
+.tqt-tabs-nav li button .tqt-tab-badge-rtl {
+    background: #dba617;
+    color: #fff;
+    margin-left: 2px;
+}
+
+/* Tab content panels */
+.tqt-tab-panel {
+    display: none;
+    padding: 16px;
+}
+
+.tqt-tab-panel.tqt-tab-panel-active {
+    display: block;
+}
+
+/* RTL support inside tab panels */
+.tqt-tab-panel[dir="rtl"] .acf-input input[type="text"],
+.tqt-tab-panel[dir="rtl"] .acf-input textarea {
+    direction: rtl;
+    text-align: right;
+}
+
+/* Translation completion bar */
+.tqt-completion-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: #f6f7f7;
+    border-bottom: 1px solid #e0e0e0;
+    font-size: 12px;
+    color: #50575e;
+}
+
+.tqt-completion-track {
+    flex: 1;
+    max-width: 200px;
+    height: 6px;
+    background: #e0e0e0;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.tqt-completion-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.tqt-completion-fill-complete {
+    background: #00a32a;
+}
+
+.tqt-completion-fill-partial {
+    background: #dba617;
+}
+
+.tqt-completion-fill-empty {
+    background: #d63638;
+}
+
+/* Quick copy from default language button */
+.tqt-copy-default {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    margin-bottom: 12px;
+    border: 1px solid #c3c4c7;
+    border-radius: 3px;
+    background: #f6f7f7;
+    color: #50575e;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.tqt-copy-default:hover {
+    border-color: #2271b1;
+    color: #2271b1;
+}
