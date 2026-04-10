@@ -1,146 +1,132 @@
-# TableQR Translations — Digital Menu Translation Plugin
+# TableQR Translation Plugin
 
-A lightweight, zero-dependency multilingual translation system built for headless WordPress + Next.js digital menu services.
+Translation-only plugin for TableQR digital menu WordPress sites. Replaces WPGlobus for multisite environments.
 
-## Requirements
+## What it does
 
-- WordPress 6.0+
-- PHP 7.4+
-- ACF Pro (for repeater fields)
-- WordPress Multisite (supported, not required)
+- Stores translations in **suffixed meta keys** (`description_ar`, `description_tr`) alongside original ACF fields
+- Does NOT touch your existing CPTs, ACF fields, theme files, or any other plugin
+- Provides a tabbed translation UI on post edit screens
+- Imports/exports translations via CSV in your existing column format
+- Serves translated content through a REST API for Next.js headless frontends
 
-## Plugin Structure
+## What it does NOT do
 
-```
-tableqr-translations/
-├── tableqr-translations.php          # Main plugin file (settings, REST API, CSV import/export, admin columns)
-├── includes/
-│   ├── cpt-registration.php     # digital_menu custom post type
-│   └── acf-fields.php           # ACF field groups (translations repeater + base fields)
-├── assets/
-│   ├── css/
-│   │   └── tqt-tabs.css         # Tabbed editor UI styles
-│   └── js/
-│       └── tqt-tabs.js          # Tabbed editor UI logic
-└── README.md
-```
+- Register CPTs (your theme handles that)
+- Manage ACF fields (your existing field groups stay untouched)
+- Auto-translate anything
+- Modify the WordPress frontend (you're headless)
 
-## Installation
+## Storage approach
 
-1. Upload the `tableqr-translations` folder to `/wp-content/plugins/`
-2. For multisite: Network Activate the plugin
-3. For single site: Activate normally
-4. Go to **TableQR Translations → Settings** to configure languages
+| Content | Default language (en) | Arabic (ar) | Turkish (tr) |
+|---|---|---|---|
+| Post title | `post_title` column | `tqt_post_title_ar` meta | `tqt_post_title_tr` meta |
+| Description | `description` meta | `description_ar` meta | `description_tr` meta |
+| Price name (variant) | `prices_0_price_name` | `prices_0_price_name_ar` | `prices_0_price_name_tr` |
+| Term name | `wp_terms.name` | `tqt_name_ar` term meta | `tqt_name_tr` term meta |
+| Options | `options_name` | `options_name_ar` | `options_name_tr` |
 
-## Settings
+Existing code that reads `get_field('description')` still works — it gets the default language value untouched.
 
-### Default Language
-The primary language for the site. Shown first in editor tabs. Used as fallback when a translation is missing.
+## Translatable fields
 
-### Enabled Languages
-Check any languages your site needs. Only checked languages appear as editor tabs.
+### menu_item CPT
+- Title, Description, Custom Label
+- Variant price names (inside the prices repeater)
+- Taxonomy terms: Menu Category, Menu Section
 
-### Custom Languages
-Add languages not in the built-in list (e.g., regional dialects, less common languages). Provide a short code and label.
+### branch CPT
+- Title, Card Description
 
-### Fallback Behaviour
-When a requested language translation doesn't exist:
-- **Show default language** — falls back to the default language content
-- **Hide item** — item is excluded from API response entirely
-- **Show empty** — returns the item with blank translated fields
+### menu_promo CPT
+- Title
 
-### CSV Delimiter
-Choose comma, semicolon, or tab for your CSV files.
+### Options pages
+- Restaurant Name, Business Name, Business Description, Serves Cuisine
+- Address, Open Days, Street Address, City, Region
+- Tax Notice, Google Feedback ID
+- Link in Bio Title, Link in Bio Description
 
-## CSV Import Format
+## CSV Format
+
+Matches your existing format exactly:
 
 ```csv
-item_id,category,price,image,is_available,sort_order,lang,name,description
-001,mains,25.00,chicken.jpg,1,10,en,Grilled Chicken,Juicy grilled chicken breast
-001,mains,25.00,chicken.jpg,1,10,ar,دجاج مشوي,صدر دجاج مشوي طري
-001,mains,25.00,chicken.jpg,1,10,zh,烤鸡,多汁的烤鸡胸肉
-002,desserts,12.00,cake.jpg,1,20,en,Chocolate Cake,Rich dark chocolate cake
-002,desserts,12.00,cake.jpg,1,20,ar,كيكة الشوكولاتة,كيكة شوكولاتة داكنة غنية
+title,menu_category,menu_section,title_ar,menu_category_ar,menu_section_ar,title_tr,...,description,description_ar,description_tr,price,calorie,prices_1_price_name,prices_1_price_name_ar,...
 ```
 
-**Rules:**
-- Columns before `lang` are non-translatable (same values per item across all rows)
-- `item_id` is your unique identifier — used to match existing posts for updates
-- One row per language per item
-- Add any extra translated columns after `description` — they'll be stored automatically
-- Use the Dry Run checkbox to validate before importing
+## REST API
 
-## REST API Endpoints
-
-### GET `/wp-json/tableqr/v1/languages`
-Returns available languages for the site.
-
-```json
-[
-  { "code": "en", "label": "English", "is_default": true, "is_rtl": false },
-  { "code": "ar", "label": "Arabic", "is_default": false, "is_rtl": true }
-]
+```
+GET /wp-json/tqt/v1/languages
+GET /wp-json/tqt/v1/menu?lang=ar&category=breakfast
+GET /wp-json/tqt/v1/menu/{id}?lang=ar
+GET /wp-json/tqt/v1/terms?lang=ar&taxonomy=menu_category
+GET /wp-json/tqt/v1/options?lang=ar
+GET /wp-json/tqt/v1/branches?lang=ar
 ```
 
-### GET `/wp-json/tableqr/v1/menu?lang=ar&category=mains`
-Returns menu items in the requested language.
-
-**Parameters:**
-- `lang` — Language code (defaults to site default language)
-- `category` — Filter by category
-- `per_page` — Items per page (default 100, max 500)
-- `page` — Page number
-
-**Response headers:**
-- `X-WP-Total` — Total items
-- `X-WP-TotalPages` — Total pages
-- `X-TQT-Language` — Language served
-
-### GET `/wp-json/tableqr/v1/menu/{id}?lang=ar`
-Returns a single menu item.
-
-## Next.js Integration Example
+## Next.js usage
 
 ```typescript
-// lib/api.ts
-const WP_API = process.env.NEXT_PUBLIC_WP_API_URL; // e.g. https://gcc.example.com
+const API = process.env.NEXT_PUBLIC_WP_URL;
 
-export async function getMenuItems(lang: string, category?: string) {
-  const params = new URLSearchParams({ lang });
-  if (category) params.set('category', category);
-
-  const res = await fetch(`${WP_API}/wp-json/tableqr/v1/menu?${params}`, {
-    next: { revalidate: 60 }, // ISR: revalidate every 60 seconds
+export async function getMenu(lang: string) {
+  const res = await fetch(`${API}/wp-json/tqt/v1/menu?lang=${lang}`, {
+    next: { revalidate: 60 },
   });
-
-  if (!res.ok) throw new Error('Failed to fetch menu');
   return res.json();
 }
 
 export async function getLanguages() {
-  const res = await fetch(`${WP_API}/wp-json/tableqr/v1/languages`, {
-    next: { revalidate: 3600 },
-  });
+  const res = await fetch(`${API}/wp-json/tqt/v1/languages`);
   return res.json();
 }
 ```
 
-## WP-CLI Commands
+## WP-CLI
 
 ```bash
-# Import a CSV file
-wp tqt import /path/to/menu.csv
-
-# List active languages
-wp tqt list-languages
+wp tqt import menu.csv --post-type=menu_item
+wp tqt import menu.csv --dry-run
+wp tqt languages
+wp tqt stats --post-type=menu_item
 ```
 
-## Adding Custom Translated Fields
+## Adding new translatable fields
 
-Edit `includes/acf-fields.php` and add entries to the `$translated_sub_fields` array. The CSV importer will automatically pick up any new columns that match the field names (without the `tqt_` prefix).
+Edit `includes/settings.php` → `tqt_translatable_fields()`. Or use the filter:
 
-## Multisite Notes
+```php
+add_filter( 'tqt_translatable_fields', function( $fields ) {
+    $fields['menu_item']['meta_fields'][] = [
+        'name' => 'my_new_field',
+        'type' => 'text',
+        'label' => 'My New Field',
+    ];
+    return $fields;
+});
+```
 
-- Network activate to make available across all sites
-- Each site has its own language settings (different restaurants may need different languages)
-- The REST API is per-site, so your Next.js frontend hits the specific subsite URL
+## Multisite
+
+Network activate. Each site has its own language settings.
+
+## Plugin structure
+
+```
+tableqr-translations/
+├── tableqr-translations.php     # Bootstrap
+├── includes/
+│   ├── settings.php             # Language config + field registry
+│   ├── storage.php              # Read/write translation values
+│   ├── admin-settings.php       # Settings page + term translations page
+│   ├── admin-tabs.php           # Tabbed metabox on post edit screens
+│   ├── admin-columns.php        # Language badges on post list
+│   ├── csv-import.php           # CSV importer
+│   ├── csv-export.php           # CSV exporter
+│   ├── rest-api.php             # Headless REST endpoints
+│   └── cli.php                  # WP-CLI commands
+└── README.md
+```
