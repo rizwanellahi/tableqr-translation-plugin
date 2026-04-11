@@ -26,7 +26,8 @@ function tqt_render_settings_page() {
 
     // Handle save
     if ( isset( $_POST['tqt_save'] ) && check_admin_referer( 'tqt_settings_nonce' ) ) {
-        $settings = tqt_get_settings();
+        $settings     = tqt_get_settings();
+        $prev_default = $settings['default_language'];
 
         $settings['enabled_languages']   = array_map( 'sanitize_key', $_POST['tqt_enabled_langs'] ?? [] );
         $settings['default_language']     = sanitize_key( $_POST['tqt_default_lang'] ?? 'en' );
@@ -54,8 +55,20 @@ function tqt_render_settings_page() {
             array_unshift( $settings['enabled_languages'], $settings['default_language'] );
         }
 
+        if ( $prev_default !== $settings['default_language'] && function_exists( 'tqt_migrate_translation_storage_for_default_change' ) ) {
+            tqt_migrate_translation_storage_for_default_change(
+                $prev_default,
+                $settings['default_language'],
+                $settings['enabled_languages']
+            );
+        }
+
         tqt_save_settings( $settings );
-        echo '<div class="notice notice-success"><p>Settings saved.</p></div>';
+        if ( isset( $prev_default ) && $prev_default !== $settings['default_language'] ) {
+            echo '<div class="notice notice-success"><p>Settings saved. Translation storage was remapped for the new default language (titles, descriptions, options, and taxonomy names).</p></div>';
+        } else {
+            echo '<div class="notice notice-success"><p>Settings saved.</p></div>';
+        }
     }
 
     $settings  = tqt_get_settings();

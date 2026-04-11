@@ -23,6 +23,9 @@ require_once TQT_DIR . 'includes/settings.php';
 /* ── Translation storage & retrieval API ── */
 require_once TQT_DIR . 'includes/storage.php';
 
+/* ── Remap stored translations when default language changes ── */
+require_once TQT_DIR . 'includes/migrate-default-language.php';
+
 /* ── Front: URL language prefix (/es/…), cookies, localize helpers ── */
 require_once TQT_DIR . 'includes/request-language.php';
 require_once TQT_DIR . 'includes/locale-theme.php';
