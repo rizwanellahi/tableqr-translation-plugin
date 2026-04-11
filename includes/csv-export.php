@@ -5,14 +5,30 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+/**
+ * Send CSV download before any admin output (avoids "headers already sent").
+ */
+add_action(
+	'admin_init',
+	static function () {
+		if ( ! isset( $_POST['tqt_export'] ) ) {
+			return;
+		}
+		if ( ! is_admin() || ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		if ( ! check_admin_referer( 'tqt_csv_export_nonce', '_wpnonce', false ) ) {
+			return;
+		}
+
+		$post_type = sanitize_key( wp_unslash( $_POST['tqt_export_cpt'] ?? 'menu_item' ) );
+		tqt_process_csv_export( $post_type );
+	},
+	1
+);
+
 function tqt_render_csv_export_page() {
     if ( ! current_user_can( 'manage_options' ) ) return;
-
-    if ( isset( $_POST['tqt_export'] ) && check_admin_referer( 'tqt_csv_export_nonce' ) ) {
-        $post_type = sanitize_key( $_POST['tqt_export_cpt'] ?? 'menu_item' );
-        tqt_process_csv_export( $post_type );
-        return;
-    }
 
     ?>
     <div class="wrap">
