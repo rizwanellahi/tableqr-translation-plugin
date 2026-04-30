@@ -17,6 +17,13 @@ Translation-only plugin for TableQR digital menu WordPress sites. Replaces WPGlo
 - Auto-translate anything
 - Modify the WordPress frontend (you're headless)
 
+## Important development rule
+
+- Do not edit `tableqr-menu-multi/` from this plugin workflow.
+- Treat `tableqr-menu-multi/` as reference-only when tracing UI/rendering behavior.
+- All translation logic and fixes must be implemented inside `tableqr-translations` plugin files.
+- If a theme-file change becomes mandatory to complete a fix, ask for explicit permission before editing `tableqr-menu-multi/`.
+
 ## Storage approach
 
 | Content | Default language (en) | Arabic (ar) | Turkish (tr) |
